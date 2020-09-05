@@ -39,6 +39,7 @@ MainWindow::MainWindow()
     , mLogEdit(new QTextEdit)
 {
     mHostNameEdit->setPlaceholderText(tr("RTMP server URL"));
+    mLogEdit->setReadOnly(true);
 
     QGridLayout *gridLayout = new QGridLayout;
     gridLayout->addWidget(mDeviceComboBox, 0, 0);
@@ -72,6 +73,8 @@ void MainWindow::closeEvent(QCloseEvent *event)
 
 void MainWindow::repopulateAudioDevices()
 {
+    QAudioDeviceInfo curInfo = mDeviceComboBox->currentData().value<QAudioDeviceInfo>();
+
     mDeviceComboBox->clear();
     foreach (QAudioDeviceInfo info, QAudioDeviceInfo::availableDevices(QAudio::AudioInput)) {
         if (!info.isNull()) {
@@ -81,6 +84,9 @@ void MainWindow::repopulateAudioDevices()
                     .arg(info.realm()),
                 QVariant::fromValue<QAudioDeviceInfo>(info)
             );
+            if (info == curInfo) {
+                mDeviceComboBox->setCurrentIndex(mDeviceComboBox->count() - 1);
+            }
         }
     }
 }
