@@ -32,6 +32,8 @@
 #include <QSettings>
 #include <QTextEdit>
 
+#include "rtmp/client.h"
+
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
@@ -46,9 +48,12 @@ protected:
 
 private slots:
 
-    void repopulateAudioDevices();
+    void onRefreshClicked();
+    void onConnectClicked();
 
 private:
+
+    void toggleConnected(bool connected);
 
     QSettings mSettings;
 
@@ -57,6 +62,8 @@ private:
     QLineEdit *mHostNameEdit;
     QPushButton *mConnectionButton;
     QTextEdit *mLogEdit;
+
+    RTMP::Client *mClient;
 };
 
 #endif // MAINWINDOW_H

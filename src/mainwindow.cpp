@@ -23,8 +23,10 @@
  */
 
 #include <QAudioDeviceInfo>
+#include <QCloseEvent>
 #include <QGridLayout>
 #include <QIcon>
+#include <QMessageBox>
 
 #include "mainwindow.h"
 
@@ -37,6 +39,7 @@ MainWindow::MainWindow()
     , mHostNameEdit(new QLineEdit)
     , mConnectionButton(new QPushButton)
     , mLogEdit(new QTextEdit)
+    , mClient(nullptr)
 {
     mHostNameEdit->setPlaceholderText(tr("RTMP server URL"));
     mLogEdit->setReadOnly(true);
@@ -48,7 +51,8 @@ MainWindow::MainWindow()
     gridLayout->addWidget(mConnectionButton, 1, 1);
     gridLayout->addWidget(mLogEdit, 2, 0, 1, 2);
 
-    connect(mRefreshButton, &QPushButton::clicked, this, &MainWindow::repopulateAudioDevices);
+    connect(mRefreshButton, &QPushButton::clicked, this, &MainWindow::onRefreshClicked);
+    connect(mConnectionButton, &QPushButton::clicked, this, &MainWindow::onConnectClicked);
 
     QWidget *widget = new QWidget;
     widget->setLayout(gridLayout);
@@ -61,17 +65,27 @@ MainWindow::MainWindow()
     setWindowTitle(tr("Audio Streamer"));
     setWindowIcon(QIcon(":/logo.png"));
 
-    repopulateAudioDevices();
+    onRefreshClicked();
+    toggleConnected(false);
 }
 
 void MainWindow::closeEvent(QCloseEvent *event)
 {
-    mSettings.setValue(SettingGeometry, saveGeometry());
-    mSettings.setValue(SettingWindowState, saveState());
-    QMainWindow::closeEvent(event);
+    if (mClient && QMessageBox::warning(
+                this,
+                tr("Warning"),
+                tr("Streaming is in progress. Are you sure?"),
+                QMessageBox::Yes | QMessageBox::No,
+                QMessageBox::No) == QMessageBox::No) {
+        event->ignore();
+    } else {
+        mSettings.setValue(SettingGeometry, saveGeometry());
+        mSettings.setValue(SettingWindowState, saveState());
+        QMainWindow::closeEvent(event);
+    }
 }
 
-void MainWindow::repopulateAudioDevices()
+void MainWindow::onRefreshClicked()
 {
     QAudioDeviceInfo curInfo = mDeviceComboBox->currentData().value<QAudioDeviceInfo>();
 
@@ -89,4 +103,24 @@ void MainWindow::repopulateAudioDevices()
             }
         }
     }
+}
+
+void MainWindow::onConnectClicked()
+{
+    if (mClient) {
+        // TODO: disconnect client
+        delete mClient;
+    } else {
+        mClient = new RTMP::Client(mHostNameEdit->text(), this);
+    }
+
+    toggleConnected(mClient);
+}
+
+void MainWindow::toggleConnected(bool connected)
+{
+    mDeviceComboBox->setEnabled(!connected);
+    mRefreshButton->setEnabled(!connected);
+    mHostNameEdit->setEnabled(!connected);
+    mConnectionButton->setText(connected ? tr("Disconnect") : tr("Connect"));
 }
