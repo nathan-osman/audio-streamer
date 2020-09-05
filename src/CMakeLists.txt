@@ -1,5 +1,8 @@
 set(SRC
     main.cpp
+    mainwindow.h
+    mainwindow.cpp
+    resource.qrc
     rtmp/client.h
     rtmp/client.cpp
     rtmp/protocol.h
@@ -14,7 +17,7 @@ set_target_properties(audio-streamer PROPERTIES
 )
 
 target_include_directories(audio-streamer PRIVATE)
-target_link_libraries(audio-streamer Qt5::Network Qt5::Widgets)
+target_link_libraries(audio-streamer Qt5::Multimedia Qt5::Network Qt5::Widgets)
 
 install(TARGETS audio-streamer RUNTIME DESTINATION bin)
 

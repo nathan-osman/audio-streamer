@@ -22,20 +22,41 @@
  * IN THE SOFTWARE.
  */
 
-#include <QApplication>
+#ifndef MAINWINDOW_H
+#define MAINWINDOW_H
 
-#include "mainwindow.h"
+#include <QComboBox>
+#include <QLineEdit>
+#include <QMainWindow>
+#include <QPushButton>
+#include <QSettings>
+#include <QTextEdit>
 
-int main(int argc, char **argv)
+class MainWindow : public QMainWindow
 {
-    QApplication::setApplicationName("Audio Streamer");
-    QApplication::setOrganizationName("Nathan Osman");
-    QApplication::setOrganizationDomain("com.nathanosman");
+    Q_OBJECT
 
-    QApplication app(argc, argv);
+public:
 
-    MainWindow mainWindow;
-    mainWindow.show();
+    MainWindow();
 
-    return app.exec();
-}
+protected:
+
+    void closeEvent(QCloseEvent *event);
+
+private slots:
+
+    void repopulateAudioDevices();
+
+private:
+
+    QSettings mSettings;
+
+    QComboBox *mDeviceComboBox;
+    QPushButton *mRefreshButton;
+    QLineEdit *mHostNameEdit;
+    QPushButton *mConnectionButton;
+    QTextEdit *mLogEdit;
+};
+
+#endif // MAINWINDOW_H
