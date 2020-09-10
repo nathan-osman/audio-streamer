@@ -22,54 +22,49 @@
  * IN THE SOFTWARE.
  */
 
-#ifndef MAINWINDOW_H
-#define MAINWINDOW_H
+#ifndef PROTOCOL_H
+#define PROTOCOL_H
 
-#include <QComboBox>
-#include <QLineEdit>
-#include <QMainWindow>
-#include <QPushButton>
-#include <QSettings>
-#include <QTextEdit>
+#include <QIODevice>
 
-#include "client.h"
-#include "log.h"
-#include "recorder.h"
-
-class MainWindow : public QMainWindow
+/**
+ * @brief Implementation of the RTMP protocol for streaming audio
+ */
+class Protocol : public QObject
 {
     Q_OBJECT
 
 public:
 
-    MainWindow();
+    Protocol(QIODevice *device, QObject *parent = nullptr);
 
-protected:
+    void startHandshake();
 
-    void closeEvent(QCloseEvent *event);
+signals:
+
+    void error(const QString &errorMessage);
+    void handshakeCompleted();
 
 private slots:
 
-    void onDeviceChanged();
-    void onRefreshClicked(bool init = false);
-    void onConnectClicked();
-
-    void onLog(LogType logType, const QString &message);
+    void onReadyRead();
 
 private:
 
-    void toggleConnected(bool connected);
+    void processVersion();
+    void processAck();
 
-    QSettings mSettings;
+    QIODevice *mDevice;
 
-    QComboBox *mDeviceComboBox;
-    QPushButton *mRefreshButton;
-    QLineEdit *mHostNameEdit;
-    QPushButton *mConnectionButton;
-    QTextEdit *mLogEdit;
+    enum {
+        StateNone = 0,
+        StateVersionSent,
+        StateAckSent
+    } mState;
 
-    Recorder mRecorder;
-    Client mClient;
+    quint32 mEpoch;
+
+    QByteArray mReadBuffer;
 };
 
-#endif // MAINWINDOW_H
+#endif // PROTOCOL_H

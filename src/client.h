@@ -22,15 +22,13 @@
  * IN THE SOFTWARE.
  */
 
-#ifndef RTMP_CLIENT_H
-#define RTMP_CLIENT_H
+#ifndef CLIENT_H
+#define CLIENT_H
 
 #include <QTcpSocket>
 
+#include "log.h"
 #include "protocol.h"
-
-namespace RTMP
-{
 
 /**
  * @brief Implementation of an RTMP client for streaming audio
@@ -41,22 +39,30 @@ class Client : public QObject
 
 public:
 
-    Client(const QString &hostName, QObject *parent = nullptr);
+    explicit Client(QObject *parent = nullptr);
+
+    void start(const QString &hostName);
+    void stop();
+
+    inline bool isActive() const { return mActive; }
+
+signals:
+
+    void log(LogType logType, const QString &message);
 
 private slots:
 
     void onConnected();
-    void onSocketError();
+    void onHandshakeCompleted();
     void onProtocolError(const QString &errorMessage);
+    void onSocketError();
 
 private:
 
-    QString mHostName;
-
     QTcpSocket mSocket;
     Protocol mProtocol;
+
+    bool mActive;
 };
 
-}
-
-#endif // RTMP_CLIENT_H
+#endif // CLIENT_H

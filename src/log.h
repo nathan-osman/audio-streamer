@@ -22,54 +22,13 @@
  * IN THE SOFTWARE.
  */
 
-#ifndef RTMP_PROTOCOL_H
-#define RTMP_PROTOCOL_H
+#ifndef LOG_H
+#define LOG_H
 
-#include <QIODevice>
-
-namespace RTMP
-{
-
-/**
- * @brief Implementation of the RTMP protocol for streaming audio
- */
-class Protocol : public QObject
-{
-    Q_OBJECT
-
-public:
-
-    Protocol(QIODevice *device, QObject *parent = nullptr);
-
-    void startHandshake();
-
-signals:
-
-    void error(const QString &errorMessage);
-    void handshakeCompleted();
-
-private slots:
-
-    void onReadyRead();
-
-private:
-
-    void processVersion();
-    void processAck();
-
-    QIODevice *mDevice;
-
-    enum {
-        StateNone = 0,
-        StateVersionSent,
-        StateAckSent
-    } mState;
-
-    quint32 mEpoch;
-
-    QByteArray mReadBuffer;
+enum class LogType {
+    Info,
+    Success,
+    Error
 };
 
-}
-
-#endif // RTMP_PROTOCOL_H
+#endif // LOG_H

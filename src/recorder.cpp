@@ -22,54 +22,41 @@
  * IN THE SOFTWARE.
  */
 
-#ifndef MAINWINDOW_H
-#define MAINWINDOW_H
+#include <QAudioFormat>
 
-#include <QComboBox>
-#include <QLineEdit>
-#include <QMainWindow>
-#include <QPushButton>
-#include <QSettings>
-#include <QTextEdit>
-
-#include "client.h"
-#include "log.h"
 #include "recorder.h"
 
-class MainWindow : public QMainWindow
+Recorder::Recorder(QObject *parent)
+    : QObject(parent)
+    , mAudioInput(nullptr)
 {
-    Q_OBJECT
+}
 
-public:
+Recorder::~Recorder()
+{
+    if (mAudioInput) {
+        mAudioInput->stop();
+    }
+}
 
-    MainWindow();
+void Recorder::setDevice(const QAudioDeviceInfo &audioDeviceInfo)
+{
+    if (mAudioInput) {
+        mAudioInput->deleteLater();
+    }
 
-protected:
+    QAudioFormat audioFormat;
+    audioFormat.setByteOrder(QAudioFormat::LittleEndian);
+    audioFormat.setChannelCount(1);
+    audioFormat.setCodec("audio/pcm");
+    audioFormat.setSampleRate(44100);
+    audioFormat.setSampleSize(16);
+    audioFormat.setSampleType(QAudioFormat::SignedInt);
 
-    void closeEvent(QCloseEvent *event);
+    mAudioInput = new QAudioInput(audioDeviceInfo, audioFormat, this);
 
-private slots:
-
-    void onDeviceChanged();
-    void onRefreshClicked(bool init = false);
-    void onConnectClicked();
-
-    void onLog(LogType logType, const QString &message);
-
-private:
-
-    void toggleConnected(bool connected);
-
-    QSettings mSettings;
-
-    QComboBox *mDeviceComboBox;
-    QPushButton *mRefreshButton;
-    QLineEdit *mHostNameEdit;
-    QPushButton *mConnectionButton;
-    QTextEdit *mLogEdit;
-
-    Recorder mRecorder;
-    Client mClient;
-};
-
-#endif // MAINWINDOW_H
+    QIODevice *device = mAudioInput->start();
+    connect(device, &QIODevice::readyRead, [this, device]() {
+        emit audioData(device->readAll());
+    });
+}

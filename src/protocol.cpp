@@ -29,19 +29,16 @@
 
 #include "protocol.h"
 
-using namespace RTMP;
-
 const quint8 Version = 0x03;
 
-struct Handshake1
+struct Handshake2
 {
-    quint8 version;
     quint32 time;
     quint32 zero;
     quint8 random[1528];
 };
 
-struct Handshake2
+struct Handshake3
 {
     quint32 time;
     quint32 time2;
@@ -71,14 +68,14 @@ void Protocol::startHandshake()
     mEpoch = currentTimestamp();
 
     // Send the C0 and C1 packets
-    Handshake1 handshake1{
-        Version,
+    Handshake2 handshake2{
         qToBigEndian<quint32>(mEpoch),
         0,
         {0}
     };
 
-    mDevice->write(reinterpret_cast<const char*> (&handshake1), sizeof (Handshake1));
+    mDevice->write(reinterpret_cast<const char*> (&Version), sizeof (quint8));
+    mDevice->write(reinterpret_cast<const char*> (&handshake2), sizeof (Handshake2));
     mState = StateVersionSent;
 }
 
@@ -90,7 +87,7 @@ void Protocol::onReadyRead()
     case StateNone:
         break;
     case StateVersionSent:
-        if (static_cast<size_t> (mReadBuffer.size()) >= sizeof (Handshake1)) {
+        if (static_cast<size_t> (mReadBuffer.size()) >= sizeof (quint8) + sizeof (Handshake2)) {
             processVersion();
         }
         break;
@@ -105,24 +102,25 @@ void Protocol::onReadyRead()
 void Protocol::processVersion()
 {
     // Read the S0 and S1 packets
-    const Handshake1 *handshake1 = reinterpret_cast<const Handshake1*>(mReadBuffer.constData());
-    mReadBuffer.remove(0, sizeof (Handshake1));
+    const quint8 serverVersion = *reinterpret_cast<const quint8*> (mReadBuffer.constData());
+    const Handshake2 *handshake2 = reinterpret_cast<const Handshake2*> (mReadBuffer.constData() + 1);
+    mReadBuffer.remove(0, sizeof(quint8) + sizeof (Handshake2));
 
     // Confirm that version 3+ is supported
-    if (handshake1->version < Version) {
-        emit error(tr("invalid version %1 specified").arg(handshake1->version));
+    if (serverVersion < Version) {
+        emit error(tr("invalid version %1 specified").arg(serverVersion));
         return;
     }
 
     // Create the C2 packet
-    Handshake2 handshake2{
+    Handshake2 clientHandshake2{
         qToBigEndian<quint32>(mEpoch),
         qToBigEndian<quint32>(currentTimestamp()),
         {0}
     };
-    memcpy(handshake2.random, handshake1->random, sizeof (Handshake2::random));
+    memcpy(clientHandshake2.random, handshake2->random, sizeof (Handshake2::random));
 
-    mDevice->write(reinterpret_cast<const char*> (&handshake2), sizeof (Handshake2));
+    mDevice->write(reinterpret_cast<const char*> (&clientHandshake2), sizeof (Handshake2));
     mState = StateAckSent;
 }
 

@@ -1,12 +1,15 @@
 set(SRC
+    client.h
+    client.cpp
+    log.h
     main.cpp
     mainwindow.h
     mainwindow.cpp
+    recorder.h
+    recorder.cpp
     resource.qrc
-    rtmp/client.h
-    rtmp/client.cpp
-    rtmp/protocol.h
-    rtmp/protocol.cpp
+    protocol.h
+    protocol.cpp
 )
 
 add_executable(audio-streamer WIN32 ${SRC})

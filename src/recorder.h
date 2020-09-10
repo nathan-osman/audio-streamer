@@ -22,54 +22,36 @@
  * IN THE SOFTWARE.
  */
 
-#ifndef MAINWINDOW_H
-#define MAINWINDOW_H
+#ifndef RECORDER_H
+#define RECORDER_H
 
-#include <QComboBox>
-#include <QLineEdit>
-#include <QMainWindow>
-#include <QPushButton>
-#include <QSettings>
-#include <QTextEdit>
+#include <QAudioDeviceInfo>
+#include <QAudioInput>
 
-#include "client.h"
 #include "log.h"
-#include "recorder.h"
 
-class MainWindow : public QMainWindow
+/**
+ * @brief Recorder for audio data from the specified source
+ */
+class Recorder : public QObject
 {
     Q_OBJECT
 
 public:
 
-    MainWindow();
+    explicit Recorder(QObject *parent = nullptr);
+    virtual ~Recorder();
 
-protected:
+    void setDevice(const QAudioDeviceInfo &audioDeviceInfo);
 
-    void closeEvent(QCloseEvent *event);
+signals:
 
-private slots:
-
-    void onDeviceChanged();
-    void onRefreshClicked(bool init = false);
-    void onConnectClicked();
-
-    void onLog(LogType logType, const QString &message);
+    void log(LogType logType, const QString &message);
+    void audioData(const QByteArray &data);
 
 private:
 
-    void toggleConnected(bool connected);
-
-    QSettings mSettings;
-
-    QComboBox *mDeviceComboBox;
-    QPushButton *mRefreshButton;
-    QLineEdit *mHostNameEdit;
-    QPushButton *mConnectionButton;
-    QTextEdit *mLogEdit;
-
-    Recorder mRecorder;
-    Client mClient;
+    QAudioInput *mAudioInput;
 };
 
-#endif // MAINWINDOW_H
+#endif // RECORDER_H

@@ -24,34 +24,54 @@
 
 #include "client.h"
 
-using namespace RTMP;
-
-Client::Client(const QString &hostName, QObject *parent)
+Client::Client(QObject *parent)
     : QObject(parent)
-    , mHostName(hostName)
     , mProtocol(&mSocket)
+    , mActive(false)
 {
     connect(&mSocket, &QTcpSocket::connected, this, &Client::onConnected);
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wused-but-marked-unused"
     connect(&mSocket, qOverload<QAbstractSocket::SocketError>(&QTcpSocket::error),
             this, &Client::onSocketError);
-#pragma clang diagnostic pop
 
+    connect(&mProtocol, &Protocol::handshakeCompleted, this, &Client::onHandshakeCompleted);
     connect(&mProtocol, &Protocol::error, this, &Client::onProtocolError);
+}
+
+void Client::start(const QString &hostName)
+{
+    mActive = true;
+
+    emit log(LogType::Info, QString("connecting to %1...").arg(hostName));
+    mSocket.connectToHost(hostName, 1935);
+}
+
+void Client::stop()
+{
+    mActive = false;
+
+    emit log(LogType::Info, QString("disconnecting from host..."));
+    mSocket.disconnectFromHost();
 }
 
 void Client::onConnected()
 {
+    emit log(LogType::Success, "connected to host");
     mProtocol.startHandshake();
 }
 
-void Client::onSocketError()
+void Client::onHandshakeCompleted()
+{
+    emit log(LogType::Success, "RTMP handshake completed");
+
+    // TODO: send next chunks
+}
+
+void Client::onProtocolError(const QString &errorMessage)
 {
     //...
 }
 
-void Client::onProtocolError(const QString &errorMessage)
+void Client::onSocketError()
 {
     //...
 }

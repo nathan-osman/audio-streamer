@@ -24,13 +24,17 @@
 
 #include <QAudioDeviceInfo>
 #include <QCloseEvent>
+#include <QDateTime>
 #include <QGridLayout>
 #include <QIcon>
 #include <QMessageBox>
+#include <QUrl>
 
 #include "mainwindow.h"
 
+const QString SettingDeviceName("deviceName");
 const QString SettingGeometry("geometry");
+const QString SettingHostName("hostName");
 const QString SettingWindowState("windowState");
 
 MainWindow::MainWindow()
@@ -39,10 +43,19 @@ MainWindow::MainWindow()
     , mHostNameEdit(new QLineEdit)
     , mConnectionButton(new QPushButton)
     , mLogEdit(new QTextEdit)
-    , mClient(nullptr)
 {
     mHostNameEdit->setPlaceholderText(tr("RTMP server URL"));
+    mHostNameEdit->setText(mSettings.value(SettingHostName).toString());
     mLogEdit->setReadOnly(true);
+
+    connect(mDeviceComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &MainWindow::onDeviceChanged);
+
+    connect(mRefreshButton, &QPushButton::clicked, this, &MainWindow::onRefreshClicked);
+    connect(mConnectionButton, &QPushButton::clicked, this, &MainWindow::onConnectClicked);
+
+    connect(&mRecorder, &Recorder::log, this, &MainWindow::onLog);
+    connect(&mClient, &Client::log, this, &MainWindow::onLog);
 
     QGridLayout *gridLayout = new QGridLayout;
     gridLayout->addWidget(mDeviceComboBox, 0, 0);
@@ -50,9 +63,6 @@ MainWindow::MainWindow()
     gridLayout->addWidget(mHostNameEdit, 1, 0);
     gridLayout->addWidget(mConnectionButton, 1, 1);
     gridLayout->addWidget(mLogEdit, 2, 0, 1, 2);
-
-    connect(mRefreshButton, &QPushButton::clicked, this, &MainWindow::onRefreshClicked);
-    connect(mConnectionButton, &QPushButton::clicked, this, &MainWindow::onConnectClicked);
 
     QWidget *widget = new QWidget;
     widget->setLayout(gridLayout);
@@ -65,40 +75,55 @@ MainWindow::MainWindow()
     setWindowTitle(tr("Audio Streamer"));
     setWindowIcon(QIcon(":/logo.png"));
 
-    onRefreshClicked();
+    onRefreshClicked(true);
     toggleConnected(false);
 }
 
 void MainWindow::closeEvent(QCloseEvent *event)
 {
-    if (mClient && QMessageBox::warning(
+    if (mClient.isActive() && QMessageBox::warning(
                 this,
                 tr("Warning"),
-                tr("Streaming is in progress. Are you sure?"),
+                tr("Connection is active. Are you sure?"),
                 QMessageBox::Yes | QMessageBox::No,
                 QMessageBox::No) == QMessageBox::No) {
         event->ignore();
     } else {
+        mSettings.setValue(SettingDeviceName, mDeviceComboBox->currentText());
         mSettings.setValue(SettingGeometry, saveGeometry());
+        mSettings.setValue(SettingHostName, mHostNameEdit->text());
         mSettings.setValue(SettingWindowState, saveState());
         QMainWindow::closeEvent(event);
     }
 }
 
-void MainWindow::onRefreshClicked()
+void MainWindow::onDeviceChanged()
 {
-    QAudioDeviceInfo curInfo = mDeviceComboBox->currentData().value<QAudioDeviceInfo>();
+    QAudioDeviceInfo audioDeviceInfo = mDeviceComboBox->currentData().value<QAudioDeviceInfo>();
+    if (!audioDeviceInfo.isNull()) {
+        mRecorder.setDevice(audioDeviceInfo);
+    }
+
+    //...
+}
+
+void MainWindow::onRefreshClicked(bool init)
+{
+    QString curDeviceName = init ?
+                mSettings.value(SettingDeviceName).toString() :
+                mDeviceComboBox->currentText();
 
     mDeviceComboBox->clear();
     foreach (QAudioDeviceInfo info, QAudioDeviceInfo::availableDevices(QAudio::AudioInput)) {
         if (!info.isNull()) {
-            mDeviceComboBox->addItem(
-                QString("%1 (%2)")
+            QString deviceName = QString("%1 (%2)")
                     .arg(info.deviceName())
-                    .arg(info.realm()),
+                    .arg(info.realm());
+            mDeviceComboBox->addItem(
+                deviceName,
                 QVariant::fromValue<QAudioDeviceInfo>(info)
             );
-            if (info == curInfo) {
+            if (deviceName == curDeviceName) {
                 mDeviceComboBox->setCurrentIndex(mDeviceComboBox->count() - 1);
             }
         }
@@ -107,14 +132,38 @@ void MainWindow::onRefreshClicked()
 
 void MainWindow::onConnectClicked()
 {
-    if (mClient) {
-        // TODO: disconnect client
-        delete mClient;
+    if (mClient.isActive()) {
+        mClient.stop();
     } else {
-        mClient = new RTMP::Client(mHostNameEdit->text(), this);
+        QUrl url(mHostNameEdit->text());
+        mClient.start(url.host());
     }
 
-    toggleConnected(mClient);
+    toggleConnected(mClient.isActive());
+}
+
+void MainWindow::onLog(LogType logType, const QString &message)
+{
+    QString formatColor;
+
+    switch (logType) {
+    case LogType::Info:
+        formatColor = "#777";
+        break;
+    case LogType::Success:
+        formatColor = "#070";
+        break;
+    case LogType::Error:
+        formatColor = "#700";
+        break;
+    }
+
+    mLogEdit->append(
+        QString("[%1] <span style=\"color: %2;\">%3</span>")
+            .arg(QDateTime::currentDateTime().toString())
+            .arg(formatColor)
+            .arg(message.toHtmlEscaped())
+    );
 }
 
 void MainWindow::toggleConnected(bool connected)
